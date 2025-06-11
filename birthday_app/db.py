@@ -38,3 +38,6 @@ def get_todays_birthday_recipients():
             })
     
     return recipients
+
+
+print(get_todays_birthday_recipients())
