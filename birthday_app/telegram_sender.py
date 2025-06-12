@@ -7,17 +7,14 @@ import asyncio
 
 load_dotenv()
 
-# Создаем глобальный экземпляр бота при загрузке модуля
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 if not TELEGRAM_BOT_TOKEN:
     logging.error("TELEGRAM_BOT_TOKEN не установлен в .env файле")
     raise RuntimeError("Missing Telegram token")
 
-# Создаем экземпляр бота один раз при запуске приложения
 bot_instance = Bot(token=TELEGRAM_BOT_TOKEN)
 
 async def async_send_pdf(chat_id, file_path, caption=""):
-    """Асинхронная отправка PDF-файла"""
     try:
         with open(file_path, 'rb') as file:
             await bot_instance.send_document(
@@ -35,7 +32,5 @@ async def async_send_pdf(chat_id, file_path, caption=""):
         return False
 
 def send_pdf_via_telegram(chat_id, file_path, caption=""):
-    """Синхронная обертка для отправки PDF"""
     return asyncio.run(async_send_pdf(chat_id, file_path, caption))
     
-send_pdf_via_telegram(1108285300, "test.pdf", "some caption")

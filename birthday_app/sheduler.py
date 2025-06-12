@@ -7,12 +7,10 @@ import datetime
 import os
 import pytz
 
-# Добавьте в начало файла
 import logging
 from telegram_sender import send_pdf_via_telegram
 from datetime import datetime as dt
 
-# Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
