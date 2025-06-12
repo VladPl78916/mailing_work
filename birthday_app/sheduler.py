@@ -7,6 +7,21 @@ import datetime
 import os
 import pytz
 
+# Добавьте в начало файла
+import logging
+from telegram_sender import send_pdf_via_telegram
+from datetime import datetime as dt
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("birthday_bot.log"),
+        logging.StreamHandler()
+    ]
+)
+
 scheduler = BlockingScheduler(jobstores={'default': MemoryJobStore()})
 
 def daily_check():
@@ -20,7 +35,6 @@ def daily_check():
         user = recipient['user']
         send_time = recipient['send_time']
         
-        # Рассчитываем время выполнения по UTC
         tz = pytz.timezone(get_timezone_for_city(user['city']))
         utc_send_time = tz.localize(send_time).astimezone(pytz.utc)
         
@@ -30,21 +44,46 @@ def daily_check():
             'date',
             run_date=utc_send_time,
             args=[user],
-            id=f"bday_{user['id']}_{send_time.date()}"
+            id=f"bday_{user['id']}_{send_time.strftime('%Y%m%d')}",
+            misfire_grace_time=300
         )
-        print(f"Запланировано поздравление для {user['last_name']} в {send_time} ({utc_send_time} UTC)")
+        logging.info(f"Запланирована отправка для {user['last_name']} в {send_time} ({utc_send_time} UTC)")
 
 def send_congratulation(user):
-    """Отправка поздравления (генерация PDF)"""
-    print(f"\nОтправка поздравления для {user['last_name']} {user['first_name']}")
-    os.makedirs('congratulations', exist_ok=True)
-    filename = f"congratulations/{user['id']}_{datetime.date.today()}.pdf"
-    create_congratulation_pdf(user, filename)
-    print(f"Файл сохранён: {filename}")
-    
-    # Здесь будет код отправки по email/Telegram
-    # send_email(user['email'], filename)
-    # send_telegram(user['telegram_id'], filename)
+
+    try:
+        filename = f"congratulations/{user['id']}_{dt.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        
+        create_congratulation_pdf(user, filename)
+        logging.info(f"PDF создан: {filename}")
+        
+        caption = (
+            f"Дорогой(ая) {user['first_name']} {user['last_name']}!\n\n"
+            "Сердечно поздравляем Вас с Днём Рождения!\n"
+            "Желаем здоровья, счастья и профессиональных успехов!"
+        )
+
+        telegram_id = user['telegram_id']
+        if telegram_id:
+            if telegram_id.startswith('@'):
+                telegram_id = telegram_id[1:]
+                
+            if send_pdf_via_telegram(telegram_id, filename, caption):
+                logging.info(f"Поздравление отправлено пользователю {telegram_id}")
+            else:
+                logging.error(f"Ошибка отправки пользователю {telegram_id}")
+        else:
+            logging.warning(f"У пользователя {user['id']} не указан telegram_id")
+            
+        try:
+            os.remove(filename)
+            logging.info(f"Временный файл удален: {filename}")
+        except OSError as e:
+            logging.error(f"Ошибка удаления файла: {e}")
+            
+    except Exception as e:
+        logging.error(f"Ошибка при отправке поздравления: {e}")
 
 if __name__ == '__main__':
 
